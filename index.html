@@ -85,8 +85,8 @@
 
 			addURL(url)
 		} else {
-			const response = await fetch(`ipfs:///${name}`, {
-				method: 'POST',
+			const response = await fetch(`ipfs://bafyaabakaieac/${name}`, {
+				method: 'PUT',
 				body
 			})
 
@@ -94,7 +94,8 @@
 
 			const url = await response.text()
 
-			addURL(url)
+			const locationUrl = response.headers.get('Location');
+        	addURL(locationUrl);
 		}
 	}
 
