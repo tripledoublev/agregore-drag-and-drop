@@ -39,9 +39,16 @@ async function uploadFile(file) {
     };
 
     // Construct the URL with the actual hypercore key
-    // const hypercoreKey = 'your-32-character-hypercore-key'; // Is this something I need to generate?
-    const url = protocol === 'hyper' ? `hyper://drag_and_drop/${name}` : `ipfs://bafyaabakaieac/${name}`;
-    let body = protocol === 'hyper' ? blob : buffer;
+    let url;
+    let hyperdriveUrl;
+    let body = file instanceof File ? blob : buffer;
+
+    if (protocol === 'hyper') {
+        hyperdriveUrl = await generateHyperdriveKey(name);
+        url = `${hyperdriveUrl}${name}`;
+    } else {
+        url = `ipfs://bafyaabakaieac/${name}`;
+    }
 
     console.log('Uploading', { name, body, protocol, headers });
 
@@ -52,8 +59,7 @@ async function uploadFile(file) {
     });
 
     if (!response.ok) return addError(name, await response.text());
-
-    const urlResponse = protocol === 'hyper' ? await getPublicURL(name) : response.headers.get('Location');
+    const urlResponse = protocol === 'hyper' ? response.url : response.headers.get('Location');
     addURL(urlResponse);
 }
 
