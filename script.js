@@ -57,21 +57,16 @@ async function uploadFile(file) {
     addURL(urlResponse);
 }
 
-async function getPublicURL(name) {
+async function generateHyperdriveKey(name) {
     try {
-        const request = await fetch('hyper://drag_and_drop/.well-known/dat');
-        if (!request.ok) throw new Error(`Request failed with status: ${request.status}`);
-        const record = await request.text();
-        let base = record.split('\n')[0].trim(); 
-        if (!base.endsWith('/')) base += '/';
-        const fullUrl = new URL(name, base);
-        fullUrl.protocol = 'hyper:';
-        console.log(`getPublicURL -> Constructed URL: ${fullUrl.href}`);  // Debug log
-        return fullUrl.href;
+        const response = await fetch(`hyper://localhost/?key=${name}`, { method: 'POST' });
+        if (!response.ok) {
+            throw new Error(`Failed to generate Hyperdrive key: ${response.statusText}`);
+        }
+        return await response.text();  // This returns the hyper:// URL
     } catch (error) {
-        console.error(`Error in getPublicURL: ${error.message}`);  // Error log
-        addError(name, error.message);
-        return null;
+        console.error('Error generating Hyperdrive key:', error);
+        throw error;
     }
 }
 
