@@ -19,49 +19,60 @@ const uploadListBox = $('#uploadListBox')
 const protocolSelect = $('#protocolSelect')
 
 async function uploadFile(file) {
-    const name = file.name
-    const body = await file.arrayBuffer()
+    const name = file.name;
+    const buffer = await file.arrayBuffer();
+    const protocol = protocolSelect.value;
 
-    const protocol = protocolSelect.value
+    // Create a Blob from the ArrayBuffer
+    let mimeType = 'application/octet-stream'; // Default MIME type
 
-    console.log('Uploading', {name, body, protocol})
-
-    if(protocol === 'hyper'){
-        const response = await fetch(`hyper://drag_and_drop/${name}`, {
-            method: 'PUT',
-            body
-        })
-
-        if(!response.ok) return addError(name, await response.text())
-
-        await response.text()
-
-        const url = await getPublicURL(name)
-
-        addURL(url)
-    } else {
-        const response = await fetch(`ipfs://bafyaabakaieac/${name}`, {
-            method: 'PUT',
-            body
-        })
-
-        if(!response.ok) return addError(name, await response.text())
-
-        const url = await response.text()
-
-        const locationUrl = response.headers.get('Location');
-        addURL(locationUrl);
+    // Use the MIME type from the File object if available
+    if (file instanceof File) {
+        mimeType = file.type || mimeType;
     }
+
+    const blob = new Blob([buffer], { type: mimeType }); // Create a blob from the array buffer
+
+    // Headers
+    const headers = {
+        'Content-Type': mimeType,
+    };
+
+    // Construct the URL with the actual hypercore key
+    // const hypercoreKey = 'your-32-character-hypercore-key'; // Is this something I need to generate?
+    const url = protocol === 'hyper' ? `hyper://drag_and_drop/${name}` : `ipfs://bafyaabakaieac/${name}`;
+    let body = protocol === 'hyper' ? blob : buffer;
+
+    console.log('Uploading', { name, body, protocol, headers });
+
+    const response = await fetch(url, {
+        method: 'PUT',
+        body,
+        headers 
+    });
+
+    if (!response.ok) return addError(name, await response.text());
+
+    const urlResponse = protocol === 'hyper' ? await getPublicURL(name) : response.headers.get('Location');
+    addURL(urlResponse);
 }
 
 async function getPublicURL(name) {
-    const request = await fetch('hyper://drag_and_drop/.well-known/dat')
-    if(!request.ok) throw addError(name, await response.text())
-    const record = await request.text()
-    const base = record.split('\n')[0]
-    const full = new URL(name, base)
-    full.protocol = 'hyper:'
-    return full.href
+    try {
+        const request = await fetch('hyper://drag_and_drop/.well-known/dat');
+        if (!request.ok) throw new Error(`Request failed with status: ${request.status}`);
+        const record = await request.text();
+        let base = record.split('\n')[0].trim(); 
+        if (!base.endsWith('/')) base += '/';
+        const fullUrl = new URL(name, base);
+        fullUrl.protocol = 'hyper:';
+        console.log(`getPublicURL -> Constructed URL: ${fullUrl.href}`);  // Debug log
+        return fullUrl.href;
+    } catch (error) {
+        console.error(`Error in getPublicURL: ${error.message}`);  // Error log
+        addError(name, error.message);
+        return null;
+    }
 }
 
 function addURL(url) {
